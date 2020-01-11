@@ -63,15 +63,15 @@ class AmbiHue(SwitchDevice):
 
 
     def turn_on(self, **kwargs):
-        self._postReq('menuitems/settings/update', {"values":[{"value":{"Nodeid":2131230774,"Controllable":"true","Available":"true","data":{"value":"true"}}}]} )
+        self._postReq('menuitems/settings/update', {"values":[{"value":{"Nodeid":2131230774,"Controllable":"true","Available":"true","data":{"value":"true"}}}]})
         self._state = True
 
     def turn_off(self, **kwargs):
-        self._postReq('menuitems/settings/update', {"values":[{"value":{"Nodeid":2131230774,"Controllable":"true","Available":"true","data":{"value":"false"}}}]} )
+        self._postReq('menuitems/settings/update', {"values":[{"value":{"Nodeid":2131230774,"Controllable":"true","Available":"true","data":{"value":"false"}}}]})
         self._state = False
 
     def getState(self):
-        fullstate = self._postReq('menuitems/settings/current', {'nodes':[{'nodeid':2131230774}]})
+        fullstate = self._postGetReq('menuitems/settings/current', {'nodes':[{'nodeid':2131230774}]})
         if fullstate:
             self._available = True
             ahstat = fullstate['values'][0]['value']['data']['value']
@@ -99,7 +99,7 @@ class AmbiHue(SwitchDevice):
             self.on = False
             return None
 
-    def _postReq(self, path, data):
+    def _postGetReq(self, path, data):
         try:
             if self._connfail:
                 self._connfail -= 1
@@ -107,6 +107,22 @@ class AmbiHue(SwitchDevice):
             resp = self._session.post(BASE_URL.format(self._host, path), data=json.dumps(data), verify=False, auth=HTTPDigestAuth(self._user, self._password), timeout=TIMEOUT)
             self.on = True
             return json.loads(resp.text)
+        except requests.exceptions.RequestException as err:
+            self._connfail = CONNFAILCOUNT
+            self.on = False
+            return False
+
+    def _postReq(self, path, data):
+        try:
+            if self._connfail:
+                self._connfail -= 1
+                return False
+            resp = self._session.post(BASE_URL.format(self._host, path), data=json.dumps(data), verify=False, auth=HTTPDigestAuth(self._user, self._password), timeout=TIMEOUT)
+            self.on = True
+            if resp.status_code == 200:
+                return True
+            else:
+                return False
         except requests.exceptions.RequestException as err:
             self._connfail = CONNFAILCOUNT
             self.on = False
